@@ -29,12 +29,10 @@ jobs:
         args: --severity-threshold=high
       
 # add trivy
-    - name: Build Docker Image
-      run: docker build -t flask-app .
-
     - name: Trivy Scan
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: flask-app
+        format: table
         severity: HIGH,CRITICAL
         exit-code: 1
