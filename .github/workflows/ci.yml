@@ -1,0 +1,32 @@
+name: DevsecOps CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  zap-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t secure-stream-app .
+
+      - name: Run Flask in background
+        run: |
+          docker run -d -p 5000:5000 --name flask-app secure-stream-app
+
+      - name: wait for Flask to start
+        run: sleep 10
+
+      - name: Run the OSWAP-ZAP scan
+        run: |
+          docker run --rm ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:5000 -I
+
+
+
