@@ -2,7 +2,7 @@ name: DevsecOps CI
 
 on:
   push:
-    branches: [main,oswap-zap]
+    branches: [main, oswap-zap]
   pull_request:
     branches: [main]
 
@@ -26,7 +26,8 @@ jobs:
 
       - name: Run the OSWAP-ZAP scan
         run: |
-          docker run --rm ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:5000 -I
-
-
-
+          docker run --rm --network host \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:5000 \
+            -I
