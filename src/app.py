@@ -1,3 +1,8 @@
+import collections
+import collections.abc
+# Monkey-patch collections to support old Flask/Werkzeug versions on Python 3.10+
+collections.MutableMapping = collections.abc.MutableMapping
+
 from flask import Flask, request, jsonify
 import sqlite3
 
