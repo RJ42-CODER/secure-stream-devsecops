@@ -12,3 +12,7 @@ __pycache__/
 
 #Logs
 logs/
+
+# SQLite databases
+*.db
+*.sqlite3
