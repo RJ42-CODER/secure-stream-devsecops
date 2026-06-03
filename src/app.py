@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+import ast
 
 app = Flask(__name__)
 
@@ -52,7 +53,7 @@ def login():
         # INTENTIONAL VULNERABILITY: Unsafe eval() execution (bandit: B307)
         extra_command = data.get('extra_command', '1+1')
         try:
-            eval_result = eval(extra_command)
+            eval_result = ast.literal_eval(extra_command)
         except Exception as e:
             eval_result = str(e)
             
