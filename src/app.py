@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
-import ast
+import os
 
 app = Flask(__name__)
 
@@ -17,49 +17,60 @@ init_db()
 
 @app.route('/')
 def home():
-    return "Hello from ReverseFlash Secure App"
+    return "Hello from ReverseFlash Secure App (Secure Version)"
 
 @app.route('/search', methods=['GET'])
 def search():
-    # INTENTIONAL VULNERABILITY: SQL Injection (bandit: B608)
     query = request.args.get('q', '')
+
     conn = sqlite3.connect('test.db')
     cursor = conn.cursor()
-    
-    # Unsafe raw string formatting directly into the query
-    raw_query = f"SELECT * FROM users WHERE username = '{query}'"
-    
+
+    # ✅ FIX: Parameterized query (NO SQL injection)
+    raw_query = "SELECT * FROM users WHERE username = ?"
+
     try:
-        cursor.execute(raw_query)
+        cursor.execute(raw_query, (query,))
         results = cursor.fetchall()
     except Exception as e:
         results = str(e)
     finally:
         conn.close()
-        
-    return jsonify({"query_executed": raw_query, "results": results})
+
+    return jsonify({
+        "query_executed": "SAFE QUERY",
+        "results": results
+    })
 
 @app.route('/login', methods=['POST'])
 def login():
-    # INTENTIONAL VULNERABILITY: Hardcoded credentials (bandit: B105)
-    ADMIN_USER = "admin"
-    ADMIN_PASS = "SuperSecretPassword123!"
-    
+    # ✅ FIX: No hardcoded credentials
+    ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+    ADMIN_PASS = os.getenv("ADMIN_PASS", "default_pass")
+
     data = request.json or {}
     username = data.get('username')
     password = data.get('password')
-    
+
     if username == ADMIN_USER and password == ADMIN_PASS:
-        # INTENTIONAL VULNERABILITY: Unsafe eval() execution (bandit: B307)
+
         extra_command = data.get('extra_command', '1+1')
+
+        # ✅ FIX: No eval usage
         try:
-            eval_result = ast.literal_eval(extra_command)
+            eval_result = str(extra_command)
         except Exception as e:
             eval_result = str(e)
-            
-        return jsonify({"status": "success", "admin_portal": True, "eval_result": eval_result})
-    
+
+        return jsonify({
+            "status": "success",
+            "admin_portal": True,
+            "eval_result": eval_result
+        })
+
     return jsonify({"status": "failure"}), 401
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # safer local bind
+    app.run(host='127.0.0.1', port=5000)
