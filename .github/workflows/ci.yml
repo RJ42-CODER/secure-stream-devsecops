@@ -2,7 +2,7 @@ name: DevsecOps CI
 
 on:
   push:
-    branches: [main]
+    branches: [main,oswap-zap]
   pull_request:
     branches: [main]
 
