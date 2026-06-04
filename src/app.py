@@ -22,12 +22,13 @@ init_db()
 
 @app.route('/')
 def home():
-    return "Hello from ReverseFlash Secure App"
+    return "Hello from ReverseFlash Secure App (Secure Version)"
 
 @app.route('/search', methods=['GET'])
 def search():
     # FIX: Parameterized Queries use karke SQL Injection (B608) ko khatam kiya
     query = request.args.get('q', '')
+
     conn = sqlite3.connect('test.db')
     cursor = conn.cursor()
     
@@ -76,6 +77,7 @@ def login():
         return jsonify({"status": "success", "admin_portal": True, "result_processed": eval_result})
     
     return jsonify({"status": "failure"}), 401
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000) #nosec B104
