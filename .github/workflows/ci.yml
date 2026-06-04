@@ -2,28 +2,37 @@ name: Secure Stream DevSecOps Pipeline
 
 on:
   push:
+    branches: [ main, feature-master-pipeline ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   security-pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      # STEP 1: Checkout Code
+      # === STEP 1: CHECKOUT CODE ===
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # STEP 2: Setup Python
+      # === STEP 2: SET UP ENVIRONMENT ===
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # STEP 3: Install Dependencies
+      # === STEP 3: TANVI'S SAST SCAN (BANDIT) ===
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit Security Scan
+        run: bandit -r src/ -ll
+
+      # === STEP 4: DEPENDENCY PREPARATION ===
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
-      # STEP 4: Snyk Dependency Scan
+      # === STEP 5: RACHANA'S DEPENDENCY SCAN (SNYK) ===
       - name: Snyk Scan
         uses: snyk/actions/python@master
         env:
@@ -31,16 +40,31 @@ jobs:
         with:
           args: --severity-threshold=high
 
-      # STEP 5: Build Docker Image
+      # === STEP 6: DOCKER CONTAINER BUILD ===
       - name: Build Docker Image
         run: docker build -t secure-stream-app .
 
-      # STEP 6: Trivy Container Scan
+      # === STEP 7: RACHANA'S CONTAINER SCAN (TRIVY) ===
       - name: Trivy Scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: secure-stream-app
           format: table
           severity: HIGH,CRITICAL
-          exit-code: 1
-          
+          exit-code: 1 # FIXED: Yeh step ab image flaws par pipeline fail karega
+
+      # === STEP 8: RUN APPLICATION IN BACKGROUND ===
+      - name: Run Flask in background
+        run: |
+          docker run -d -p 5000:5000 --name flask-app secure-stream-app
+
+      - name: Wait for Flask to start
+        run: sleep 10
+
+      # === STEP 9: RJ42'S DAST SCAN (OWASP ZAP) ===
+      - name: Run the OWASP-ZAP scan
+        run: |
+          docker run --rm --network host \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:5000 || [ $? -eq 2 ]
