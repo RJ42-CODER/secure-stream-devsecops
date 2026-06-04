@@ -1,2 +1,2 @@
-# SecureStream - DevSecOPs
+# SecureStream - DevSecOps
 ### By Team - ReverseFlash
