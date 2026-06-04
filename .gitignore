@@ -16,3 +16,6 @@ logs/
 # SQLite databases
 *.db
 *.sqlite3
+
+# Testing.txt
+testing-commands.txt
