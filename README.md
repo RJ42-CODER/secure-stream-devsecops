@@ -1,24 +1,23 @@
 # 🛡️ Secure Stream: Automated DevSecOps Pipeline
 
-Welcome to the **Secure Stream** repository! This project is an intentionally vulnerable Flask web application packaged inside Docker and integrated with a modern, multi-layered **GitHub Actions CI/CD pipeline**. 
+Welcome to the **Secure Stream** repository! This project is an intentionally vulnerable Flask web application packaged inside Docker and integrated with a modern **GitHub Actions CI/CD pipeline**. 
 
-The main purpose of this project is to demonstrate **DevSecOps (Development + Security + Operations)**: automatically scanning code, dependencies, containers, and running applications for security bugs before they can be deployed to production.
+The main purpose of this project is to demonstrate a full **DevSecOps (Development + Security + Operations)** pipeline: automatically scanning code, dependencies, containers, and running applications for security bugs before they go live.
 
 ---
 
 ## 🏗️ How the Security Pipeline Works (The Flow)
 
-Every time code is pushed to this repository, GitHub automatically spins up a runner to execute these security checks in sequence:
+Every time code is pushed to this repository, GitHub automatically executes these security checks in sequence:
 
 ```mermaid
 graph TD
     A[Developer Pushes Code] --> B[GitHub Actions Starts]
     B --> C[Bandit SAST: Scans Code Files]
-    B --> D[Snyk SCA: Scans Dependencies]
-    C -->|Pass| E[Builds Docker Image]
-    D -->|Pass| E
-    E --> F[Trivy Container Scan: Scans Docker Image]
-    F -->|Pass| G[Runs App in Background on Port 5000]
+    C --> D[Snyk SCA: Scans Library Dependencies]
+    D --> E[Builds Docker Image]
+    E --> F[Trivy: Scans Docker Image & OS]
+    F --> G[Runs App in Background on Port 5000]
     G --> H[OWASP ZAP DAST: Attacks Live App]
     H --> I[Quality Gate: Evaluates JSON Report]
     I -->|Vulnerabilities Found| J[🚫 Build Fails / Blocks Merge]
@@ -27,53 +26,39 @@ graph TD
 
 ---
 
-## 🔍 The DevSecOps Security Stack Explained
+## 🔍 The 4 Security Tools Explained (In Simple Words)
 
-To achieve comprehensive security coverage, this pipeline uses a defense-in-depth approach spanning four different scanning categories:
+To achieve complete coverage, this pipeline uses a defense-in-depth approach covering code, packages, containers, and runtime:
 
 ### 1. Bandit — SAST (Static Application Security Testing)
 *   **Analogy**: Inspecting the structural blueprint of a building before building it.
-*   **What it scans**: Your static raw python source code files (`src/app.py`) without running them.
-*   **Role in your project**: It flags dangerous code patterns, specifically catching the hardcoded administrator credentials and the unsafe use of the `eval()` function in your python files.
+*   **How it works**: Bandit scans the static raw source code files (`src/app.py`) without running them. It looks for known dangerous code patterns.
+*   **What it catches here**: Hardcoded passwords (`ADMIN_PASS`) and the unsafe use of the `eval()` function.
 
 ### 2. Snyk — SCA (Software Composition Analysis)
-*   **Analogy**: Checking the food ingredients list for known allergens before cooking.
-*   **What it scans**: Your open-source package dependencies (`requirements.txt`).
-*   **Role in your project**: It checks if the specific versions of Flask, Werkzeug, or Jinja2 you are importing have known public vulnerabilities (CVEs) and warns you to update them.
+*   **Analogy**: Checking the expiration dates and quality of the raw ingredients before you cook.
+*   **How it works**: Snyk scans your dependencies listed in `requirements.txt` (like Flask, Werkzeug, etc.). It checks if the libraries you are using have known, published vulnerabilities.
+*   **What it catches here**: Outdated versions of Flask or Jinja2 that have known security flaws.
 
-### 3. Trivy — Container Image Scanner
-*   **Analogy**: Inspecting the shipping shipping container for cracks or contamination before loading it.
-*   **What it scans**: The final built Docker image (`secure-stream-app`).
-*   **Role in your project**: Even if your Python code is 100% secure, the base operating system (e.g. Alpine Linux) inside your Docker container might have old, insecure system libraries. Trivy scans the Docker filesystem layers to find these OS-level vulnerabilities.
+### 3. Trivy — Container Security Scanning
+*   **Analogy**: Checking the shipping box or container of the food to ensure it's not damaged or contaminated.
+*   **How it works**: Trivy scans the compiled **Docker image** (including the base Linux OS, like Alpine or Ubuntu, and installed system packages) for known vulnerabilities.
+*   **What it catches here**: Vulnerabilities in the Alpine Linux base OS or Python interpreter inside the container.
 
 ### 4. OWASP ZAP — DAST (Dynamic Application Security Testing)
-*   **Analogy**: Hiring a physical lockpicker to try and break into the building once the doors are open and the app is running.
-*   **What it scans**: The live, running Flask container on `http://localhost:5000` over the network.
-*   **Role in your project**: ZAP uses `openapi.yaml` to discover and attack `/search` and `/login` with real HTTP payloads. It successfully detects the active SQL Injection vulnerability and remote command execution under runtime conditions.
+*   **Analogy**: Hiring a physical lockpicker to try and break into the building once the doors are open.
+*   **How it works**: ZAP launches real network attacks against the live, running Flask container on `http://localhost:5000`. It acts as an external hacker sending malicious inputs into search fields and forms to see if the server leaks data.
+*   **What it catches here**: SQL Injection on the search route (`/search`) and remote code execution on login (`/login`).
 
 ---
 
-## ⚡ The Vulnerabilities Explained (In Simple Words)
+## ⚡ The Vulnerabilities Present (In Simple Words)
 
-Our Flask application contains three intentional security weaknesses. Here is how they work and why they are dangerous:
+Our Flask application contains three intentional security weaknesses to test our scanners:
 
-### 1. SQL Injection (SQLi)
-*   **Where**: `/search?q=`
-*   **The Code**: `raw_query = f"SELECT * FROM users WHERE username = '{query}'"`
-*   **The Problem**: User input (`query`) is inserted directly into the database command using string formatting.
-*   **The Threat**: An attacker can type `' OR '1'='1` in the search bar. The database evaluates this to `TRUE` for all records, printing out the entire database content (such as private user lists) to the attacker.
-
-### 2. Unsafe `eval()` (Remote Code Execution)
-*   **Where**: `POST /login` (using the parameter `extra_command`)
-*   **The Code**: `eval(extra_command)`
-*   **The Problem**: Python's `eval()` function executes whatever text is passed to it as active python code.
-*   **The Threat**: If an attacker accesses this endpoint, they can send a command like `__import__('os').system('rm -rf /')` to delete files or run malicious terminal commands directly inside the application server.
-
-### 3. Hardcoded Credentials
-*   **Where**: `POST /login`
-*   **The Code**: `ADMIN_PASS = "SuperSecretPassword123!"`
-*   **The Problem**: Password strings are written directly inside the source code files.
-*   **The Threat**: Anyone who has access to read the repository (like external contributors or if the repo is leaked) can read the administrator password and hijack the server.
+1.  **SQL Injection (SQLi)** (`GET /search?q=`): Direct query concatenation allows an attacker to type `' OR '1'='1` to bypass filters and dump the entire users table database.
+2.  **Unsafe `eval()` (Remote Code Execution)** (`POST /login` via `extra_command`): Evaluates text input directly as Python code, allowing hackers to run terminal commands inside the container.
+3.  **Hardcoded Credentials** (`POST /login`): Plaintext admin password stored inside code, exposing it to anyone with repository access.
 
 ---
 
@@ -93,14 +78,11 @@ We do not just scan; we **enforce** security. In the pipeline step `Evaluate Sca
 When the pipeline runs:
 1.  ZAP outputs an interactive **HTML report** (`report.html`).
 2.  The workflow uploads this file as a run artifact named `zap-reports`.
-3.  You can download the zip file from the bottom of your GitHub Actions run page, extract it, and open `report.html` in your web browser to see:
-    *   An interactive summary of all vulnerabilities categorized by risk level.
-    *   The exact HTTP Request payload ZAP sent to exploit the vulnerability.
-    *   The HTTP Response received from the server containing the exploit proof.
+3.  You can download the zip file from the bottom of your GitHub Actions run page, extract it, and open `report.html` in your web browser to see the exact HTTP requests and response payloads ZAP used to exploit the vulnerabilities.
 
 ---
 
-## 🛠️ How to Run the Scan Locally
+## 🛠️ How to Run the App & ZAP Scan Locally
 
 If you want to run the application and scan it manually on your own computer:
 
