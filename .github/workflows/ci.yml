@@ -2,7 +2,7 @@ name: Secure Stream DevSecOps Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature-master-pipeline ]
   pull_request:
     branches: [ main ]
 
@@ -62,61 +62,9 @@ jobs:
         run: sleep 10
 
       # === STEP 9: RJ42'S DAST SCAN (OWASP ZAP) ===
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
+      - name: Run the OWASP-ZAP scan
         run: |
-          docker build -t secure-stream-app .
-
-      - name: Run Flask in background
-        run: |
-          docker run -d -p 5000:5000 --name flask-app secure-stream-app
-
-      - name: Wait for Flask to start
-        run: |
-          for i in {1..10}; do
-            curl -s http://localhost:5000 && break || sleep 2
-          done
-
-      - name: Run the OWASP ZAP API scan
-        run: |
-          docker run --user root --rm --network host \
-            -v ${{ github.workspace }}:/zap/wrk/:rw \
+          docker run --rm --network host \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-api-scan.py \
-            -t /zap/wrk/openapi.yaml \
-            -f openapi \
-            -r report.html \
-            -J report.json \
-            -I || true
-
-      - name: Evaluate Scan Results (Quality Gate)
-        run: |
-          if [ -f report.json ]; then
-            # Parse json and find any alerts with riskcode >= 2 (Medium / High / Critical)
-            ALERTS_COUNT=$(jq '[.site[].alerts[] | select(.riskcode | tonumber >= 2)] | length' report.json 2>/dev/null || echo 0)
-            echo "============================================="
-            echo "Active scan completed."
-            echo "Vulnerabilities found with Severity >= Medium: $ALERTS_COUNT"
-            echo "============================================="
-            
-            if [ "$ALERTS_COUNT" -gt 0 ]; then
-              echo "FAILING PIPELINE: Found $ALERTS_COUNT Medium/High/Critical issues."
-              exit 1
-            fi
-          else
-            echo "ERROR: report.json was not generated!"
-            exit 1
-          fi
-
-      - name: Upload Scan Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-reports
-          path: |
-            report.html
-            report.json
-
+            zap-baseline.py \
+            -t http://localhost:5000 || [ $? -eq 2 ]

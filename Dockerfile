@@ -4,7 +4,10 @@ WORKDIR /app
 
 # Copy and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# FIX: Upgrade pip, setuptools, and wheel to the latest secure versions before installing requirements
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY src/ .
