@@ -2,7 +2,7 @@ name: Secure Stream DevSecOps Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature-master-pipeline ]
   pull_request:
     branches: [ main ]
 
