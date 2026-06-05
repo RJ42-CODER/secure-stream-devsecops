@@ -4,7 +4,7 @@ Welcome to the **Secure Stream** repository! This project is an intentionally vu
 
 The main purpose of this project is to demonstrate a full **DevSecOps (Development + Security + Operations)** pipeline: automatically scanning code, dependencies, containers, and running applications for security bugs before they go live.
 
----
+
 
 ## 🏗️ How the Security Pipeline Works (The Flow)
 
